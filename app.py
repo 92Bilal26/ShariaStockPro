@@ -244,20 +244,55 @@ def display_question(question: Dict[str, Any]):
     # Question styling
     st.markdown(f"<h3 style='margin-top: 1.5rem; margin-bottom: 1.5rem;'>{question['question']}</h3>", unsafe_allow_html=True)
     
-    # Options with better styling
-    options = [opt['label'] for opt in question['options']]
-    selected_option = st.radio("Select your answer:", options, key=f"q{question['id']}")
+    # Create a container for options with better styling
+    options_container = st.container()
     
-    # Description for each option based on question type
-    if question['id'] == 1:  # Investment goal
-        option_descriptions = {
-            'Capital preservation': 'Focus on protecting your principal investment with minimal risk.',
-            'Regular income': 'Generate consistent income from your investments.',
-            'Long-term growth': 'Grow your capital over time with moderate risk.',
-            'Aggressive growth': 'Maximize returns with higher risk tolerance.'
-        }
+    with options_container:
+        # Options with better styling
+        options = [opt['label'] for opt in question['options']]
+        selected_option = st.radio("Select your answer:", options, key=f"q{question['id']}", label_visibility="collapsed")
         
-        if selected_option:
+        # Get option descriptions based on question type
+        option_descriptions = {}
+        
+        if question['id'] == 1:  # Investment goal
+            option_descriptions = {
+                'Capital preservation': 'Focus on protecting your principal investment with minimal risk.',
+                'Regular income': 'Generate consistent income from your investments.',
+                'Long-term growth': 'Grow your capital over time with moderate risk.',
+                'Aggressive growth': 'Maximize returns with higher risk tolerance.'
+            }
+        elif question['id'] == 2:  # Time horizon
+            option_descriptions = {
+                'Less than 2 years': 'Short-term investments for near-future goals.',
+                '2-5 years': 'Medium-term investments for goals in the next few years.',
+                '5-10 years': 'Longer-term investments allowing for some market fluctuations.',
+                'More than 10 years': 'Very long-term investments that can withstand market cycles.'
+            }
+        elif question['id'] == 3:  # Market drop reaction
+            option_descriptions = {
+                'Sell everything immediately': 'You prioritize capital preservation above all else.',
+                'Sell some investments': 'You prefer to reduce risk when markets decline.',
+                'Hold and wait for recovery': 'You understand market cycles and can tolerate temporary losses.',
+                'Buy more at lower prices': 'You see market declines as buying opportunities.'
+            }
+        elif question['id'] == 4:  # Investment experience
+            option_descriptions = {
+                'No experience': 'You are new to investing and still learning the basics.',
+                'Basic knowledge': 'You understand fundamental investment concepts.',
+                'Intermediate experience': 'You have experience with various investment types.',
+                'Advanced investor': 'You have extensive knowledge and experience in investing.'
+            }
+        elif question['id'] == 5:  # Income percentage
+            option_descriptions = {
+                'Less than 10%': 'Conservative allocation of your income to investments.',
+                '10-20%': 'Moderate allocation of your income to investments.',
+                '20-30%': 'Significant allocation of your income to investments.',
+                'More than 30%': 'Substantial allocation of your income to investments.'
+            }
+        
+        # Display description for selected option if available
+        if selected_option and selected_option in option_descriptions:
             st.markdown(f"<div style='background-color: #f0f9ff; padding: 1rem; border-radius: 8px; margin-top: 1rem;'><p><strong>{selected_option}:</strong> {option_descriptions[selected_option]}</p></div>", unsafe_allow_html=True)
     
     # Store the answer
@@ -445,14 +480,12 @@ def main():
     # Main content area
     st.markdown("<h1>Investment Risk Assessment & Smart Beta Recommendations</h1>", unsafe_allow_html=True)
     
-    # Create a container for the main content
+    # Create a container for the main content without empty div
     main_container = st.container()
     
     with main_container:
         if st.session_state.risk_profile is None:
-            # Assessment phase
-            st.markdown("<div class='main-container'>", unsafe_allow_html=True)
-            
+            # Assessment phase - Remove empty div wrapper
             # Introduction text for first question
             if st.session_state.current_question == 0:
                 st.markdown(
@@ -503,8 +536,6 @@ def main():
                                     st.session_state.answers
                                 )
                             st.rerun()
-            
-            st.markdown("</div>", unsafe_allow_html=True)
         else:
             # Results phase
             # Profile summary card
@@ -578,20 +609,27 @@ def main():
                 # Filter strategies based on risk profile
                 filtered_strategies = [s for s in strategies if s['riskProfile'] == st.session_state.risk_profile]
                 
-                # Create columns for strategies
-                strategy_cols = st.columns(len(filtered_strategies))
-                
-                for i, strategy in enumerate(filtered_strategies):
-                    with strategy_cols[i]:
-                        st.markdown(f"<div class='result-card'>", unsafe_allow_html=True)
-                        st.markdown(f"<h4>{strategy['name']}</h4>", unsafe_allow_html=True)
-                        st.markdown(f"<p>{strategy['description']}</p>", unsafe_allow_html=True)
-                        st.markdown(f"<p><strong>Expected Return:</strong> {strategy['expectedReturn']}%</p>", unsafe_allow_html=True)
-                        st.markdown(f"<p><strong>Volatility:</strong> {strategy['expectedVolatility']}%</p>", unsafe_allow_html=True)
-                        st.markdown(f"</div>", unsafe_allow_html=True)
+                if filtered_strategies:
+                    # Create columns for strategies
+                    strategy_cols = st.columns(min(len(filtered_strategies), 3))  # Limit to 3 columns per row for better display
+                    
+                    for i, strategy in enumerate(filtered_strategies):
+                        with strategy_cols[i % len(strategy_cols)]:
+                            st.markdown(f"<div class='result-card'>", unsafe_allow_html=True)
+                            st.markdown(f"<h4>{strategy['name']}</h4>", unsafe_allow_html=True)
+                            st.markdown(f"<p>{strategy['description']}</p>", unsafe_allow_html=True)
+                            st.markdown(f"<p><strong>Expected Return:</strong> {strategy['expectedReturn']}%</p>", unsafe_allow_html=True)
+                            st.markdown(f"<p><strong>Volatility:</strong> {strategy['expectedVolatility']}%</p>", unsafe_allow_html=True)
+                            
+                            # Add factors used
+                            factors_text = ", ".join([f.capitalize() for f in strategy['factors']])
+                            st.markdown(f"<p><strong>Factors:</strong> {factors_text}</p>", unsafe_allow_html=True)
+                            st.markdown(f"</div>", unsafe_allow_html=True)
+                else:
+                    st.info("No strategies available for your risk profile. Please complete the assessment again.")
     
     # Footer
-    st.markdown("<div class='footer'>Sharia Stock Pro © 2023 | Powered by AI and Smart Beta Strategies</div>", unsafe_allow_html=True)
+    st.markdown("<div class='footer'>Sharia Stock Pro © 2025| Powered by AI and Smart Beta Strategies</div>", unsafe_allow_html=True)
 
 if __name__ == "__main__":
     main()
