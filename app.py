@@ -10,6 +10,19 @@ from tradingview_ta import TA_Handler, Interval
 from kmi30_data import get_kmi30_analysis
 from ai_agent import get_stock_recommendations
 import asyncio
+import os
+
+# Set page configuration
+st.set_page_config(
+    page_title="Sharia Stock Pro",
+    page_icon="📈",
+    layout="wide",
+    initial_sidebar_state="expanded"
+)
+
+# Load custom CSS
+with open(os.path.join(os.path.dirname(__file__), 'style.css')) as f:
+    st.markdown(f'<style>{f.read()}</style>', unsafe_allow_html=True)
 
 # Initialize session state
 if 'current_question' not in st.session_state:
@@ -224,14 +237,30 @@ def calculate_risk_profile(answers: Dict[str, int]) -> str:
         return "aggressive"
 
 def display_question(question: Dict[str, Any]):
-    st.write(f"Question {question['id']} of {len(risk_questions)}")
+    # Progress indicator
+    st.markdown(f"<p style='color: #64748b; font-size: 0.9rem;'>Question {question['id']} of {len(risk_questions)}</p>", unsafe_allow_html=True)
     st.progress(question['id'] / len(risk_questions))
     
-    st.write(question['question'])
+    # Question styling
+    st.markdown(f"<h3 style='margin-top: 1.5rem; margin-bottom: 1.5rem;'>{question['question']}</h3>", unsafe_allow_html=True)
     
+    # Options with better styling
     options = [opt['label'] for opt in question['options']]
     selected_option = st.radio("Select your answer:", options, key=f"q{question['id']}")
     
+    # Description for each option based on question type
+    if question['id'] == 1:  # Investment goal
+        option_descriptions = {
+            'Capital preservation': 'Focus on protecting your principal investment with minimal risk.',
+            'Regular income': 'Generate consistent income from your investments.',
+            'Long-term growth': 'Grow your capital over time with moderate risk.',
+            'Aggressive growth': 'Maximize returns with higher risk tolerance.'
+        }
+        
+        if selected_option:
+            st.markdown(f"<div style='background-color: #f0f9ff; padding: 1rem; border-radius: 8px; margin-top: 1rem;'><p><strong>{selected_option}:</strong> {option_descriptions[selected_option]}</p></div>", unsafe_allow_html=True)
+    
+    # Store the answer
     if selected_option:
         selected_points = next(opt['points'] for opt in question['options'] if opt['label'] == selected_option)
         st.session_state.answers[question['id']] = selected_points
@@ -387,72 +416,182 @@ def analyze_kmi30_stocks():
     return df
 
 def main():
-    st.title("Investment Risk Assessment & Smart Beta Recommendations")
-    
-    if st.session_state.risk_profile is None:
-        # Display current question
-        current_q = risk_questions[st.session_state.current_question]
-        display_question(current_q)
+    # Create sidebar
+    with st.sidebar:
+        st.image("https://img.icons8.com/color/96/000000/mosque.png", width=80)
+        st.title("Sharia Stock Pro")
+        st.markdown("---")
+        st.markdown("### About")
+        st.markdown(
+            "Sharia Stock Pro helps you find Shariah-compliant investments "
+            "that match your risk profile using smart beta strategies and AI."
+        )
+        st.markdown("---")
         
-        col1, col2 = st.columns(2)
-        
-        with col1:
-            if st.session_state.current_question > 0:
-                if st.button("Previous"):
-                    st.session_state.current_question -= 1
-                    st.rerun()
-        
-        with col2:
-            if st.session_state.current_question < len(risk_questions) - 1:
-                if st.button("Next"):
-                    if st.session_state.current_question + 1 not in st.session_state.answers:
-                        st.error("Please select an answer before proceeding.")
-                    else:
-                        st.session_state.current_question += 1
-                        st.rerun()
-            else:
-                if st.button("Complete"):
-                    if len(st.session_state.answers) < len(risk_questions):
-                        st.error("Please answer all questions before completing.")
-                    else:
-                        with st.spinner("Calculating your risk profile and analyzing KMI-30 stocks..."):
-                            # Calculate risk profile
-                            st.session_state.risk_profile = calculate_risk_profile(st.session_state.answers)
-                            
-                            # Fetch KMI-30 data
-                            st.session_state.kmi30_data = get_kmi30_analysis()
-                            
-                            # Get AI recommendations
-                            st.session_state.ai_recommendations = get_stock_recommendations(
-                                st.session_state.risk_profile,
-                                st.session_state.kmi30_data,
-                                st.session_state.answers
-                            )
-                        st.rerun()
-    else:
-        # Display results
-        st.write(f"Your risk profile is: {st.session_state.risk_profile.capitalize()}")
-        
-        # Display KMI-30 data
-        if st.session_state.kmi30_data is not None:
-            st.write("### KMI-30 Technical Analysis")
-            st.dataframe(st.session_state.kmi30_data)
+        if st.session_state.risk_profile is not None:
+            risk_color = {
+                "conservative": "conservative",
+                "moderate": "moderate",
+                "aggressive": "aggressive"
+            }[st.session_state.risk_profile]
             
-            # Display recommendations summary
-            st.write("### KMI-30 Summary")
-            recommendations = st.session_state.kmi30_data['Summary'].value_counts()
-            for rec, count in recommendations.items():
-                if rec != 'N/A':
-                    st.write(f"{rec}: {count}")
-        
-        # Display AI recommendations
-        if st.session_state.ai_recommendations:
-            st.write("### AI-Powered Recommendations")
-            st.write(st.session_state.ai_recommendations)
-        
-        if st.button("Start Over"):
-            st.session_state.clear()
-            st.rerun()
+            st.markdown(f"### Your Profile")
+            st.markdown(f"<div class='risk-badge {risk_color}'>{st.session_state.risk_profile.capitalize()}</div>", unsafe_allow_html=True)
+            
+            if st.button("🔄 Start Over", key="sidebar_reset"):
+                st.session_state.clear()
+                st.rerun()
+    
+    # Main content area
+    st.markdown("<h1>Investment Risk Assessment & Smart Beta Recommendations</h1>", unsafe_allow_html=True)
+    
+    # Create a container for the main content
+    main_container = st.container()
+    
+    with main_container:
+        if st.session_state.risk_profile is None:
+            # Assessment phase
+            st.markdown("<div class='main-container'>", unsafe_allow_html=True)
+            
+            # Introduction text for first question
+            if st.session_state.current_question == 0:
+                st.markdown(
+                    "<p style='font-size: 1.1rem; margin-bottom: 2rem;'>"
+                    "Welcome to Sharia Stock Pro! Let's assess your investment risk profile "
+                    "to provide you with personalized Shariah-compliant investment recommendations."
+                    "</p>",
+                    unsafe_allow_html=True
+                )
+            
+            # Display current question
+            current_q = risk_questions[st.session_state.current_question]
+            display_question(current_q)
+            
+            # Navigation buttons
+            col1, col2 = st.columns(2)
+            
+            with col1:
+                if st.session_state.current_question > 0:
+                    if st.button("⬅️ Previous"):
+                        st.session_state.current_question -= 1
+                        st.rerun()
+            
+            with col2:
+                if st.session_state.current_question < len(risk_questions) - 1:
+                    if st.button("Next ➡️"):
+                        if st.session_state.current_question + 1 not in st.session_state.answers:
+                            st.error("Please select an answer before proceeding.")
+                        else:
+                            st.session_state.current_question += 1
+                            st.rerun()
+                else:
+                    if st.button("Complete Assessment ✅"):
+                        if len(st.session_state.answers) < len(risk_questions):
+                            st.error("Please answer all questions before completing.")
+                        else:
+                            with st.spinner("Calculating your risk profile and analyzing KMI-30 stocks..."):
+                                # Calculate risk profile
+                                st.session_state.risk_profile = calculate_risk_profile(st.session_state.answers)
+                                
+                                # Fetch KMI-30 data
+                                st.session_state.kmi30_data = get_kmi30_analysis()
+                                
+                                # Get AI recommendations
+                                st.session_state.ai_recommendations = get_stock_recommendations(
+                                    st.session_state.risk_profile,
+                                    st.session_state.kmi30_data,
+                                    st.session_state.answers
+                                )
+                            st.rerun()
+            
+            st.markdown("</div>", unsafe_allow_html=True)
+        else:
+            # Results phase
+            # Profile summary card
+            st.markdown("<div class='result-card'>", unsafe_allow_html=True)
+            
+            risk_color = {
+                "conservative": "conservative",
+                "moderate": "moderate",
+                "aggressive": "aggressive"
+            }[st.session_state.risk_profile]
+            
+            st.markdown(f"<h2>Your Investment Profile</h2>", unsafe_allow_html=True)
+            st.markdown(f"<div class='risk-badge {risk_color}'>{st.session_state.risk_profile.capitalize()}</div>", unsafe_allow_html=True)
+            
+            profile_descriptions = {
+                "conservative": "You prefer stability and capital preservation over high returns. Your portfolio should focus on low-risk, Shariah-compliant investments.",
+                "moderate": "You seek a balance between growth and stability. Your portfolio should include a mix of growth-oriented and stable Shariah-compliant investments.",
+                "aggressive": "You prioritize growth and can tolerate higher volatility. Your portfolio should focus on growth-oriented Shariah-compliant investments with higher return potential."
+            }
+            
+            st.markdown(f"<p>{profile_descriptions[st.session_state.risk_profile]}</p>", unsafe_allow_html=True)
+            st.markdown("</div>", unsafe_allow_html=True)
+            
+            # Create tabs for different sections
+            tab1, tab2, tab3 = st.tabs(["📊 KMI-30 Analysis", "🧠 AI Recommendations", "📈 Smart Beta Strategies"])
+            
+            with tab1:
+                # Display KMI-30 data
+                if st.session_state.kmi30_data is not None:
+                    st.markdown("<h3>KMI-30 Technical Analysis</h3>", unsafe_allow_html=True)
+                    
+                    # Style the dataframe
+                    st.dataframe(
+                        st.session_state.kmi30_data.style.apply(
+                            lambda x: ['background-color: #dcfce7' if v == 'STRONG_BUY' else
+                                      'background-color: #d1fae5' if v == 'BUY' else
+                                      'background-color: #fef9c3' if v == 'NEUTRAL' else
+                                      'background-color: #fee2e2' if v == 'SELL' else
+                                      'background-color: #fecaca' if v == 'STRONG_SELL' else ''
+                                      for v in x], subset=['Summary']
+                        ),
+                        use_container_width=True
+                    )
+                    
+                    # Display recommendations summary
+                    st.markdown("<h3>KMI-30 Summary</h3>", unsafe_allow_html=True)
+                    recommendations = st.session_state.kmi30_data['Summary'].value_counts()
+                    
+                    # Create columns for recommendation counts
+                    cols = st.columns(len([r for r in recommendations.items() if r[0] != 'N/A']))
+                    
+                    i = 0
+                    for rec, count in recommendations.items():
+                        if rec != 'N/A':
+                            with cols[i]:
+                                st.markdown(f"<div class='recommendation-item {rec}'><h4>{rec}</h4><p style='font-size: 1.5rem; font-weight: bold;'>{count}</p></div>", unsafe_allow_html=True)
+                            i += 1
+            
+            with tab2:
+                # Display AI recommendations
+                if st.session_state.ai_recommendations:
+                    st.markdown("<h3>AI-Powered Recommendations</h3>", unsafe_allow_html=True)
+                    st.markdown("<div class='result-card'>", unsafe_allow_html=True)
+                    st.markdown(st.session_state.ai_recommendations, unsafe_allow_html=True)
+                    st.markdown("</div>", unsafe_allow_html=True)
+            
+            with tab3:
+                # Display Smart Beta Strategies
+                st.markdown("<h3>Smart Beta Strategies for Your Profile</h3>", unsafe_allow_html=True)
+                
+                # Filter strategies based on risk profile
+                filtered_strategies = [s for s in strategies if s['riskProfile'] == st.session_state.risk_profile]
+                
+                # Create columns for strategies
+                strategy_cols = st.columns(len(filtered_strategies))
+                
+                for i, strategy in enumerate(filtered_strategies):
+                    with strategy_cols[i]:
+                        st.markdown(f"<div class='result-card'>", unsafe_allow_html=True)
+                        st.markdown(f"<h4>{strategy['name']}</h4>", unsafe_allow_html=True)
+                        st.markdown(f"<p>{strategy['description']}</p>", unsafe_allow_html=True)
+                        st.markdown(f"<p><strong>Expected Return:</strong> {strategy['expectedReturn']}%</p>", unsafe_allow_html=True)
+                        st.markdown(f"<p><strong>Volatility:</strong> {strategy['expectedVolatility']}%</p>", unsafe_allow_html=True)
+                        st.markdown(f"</div>", unsafe_allow_html=True)
+    
+    # Footer
+    st.markdown("<div class='footer'>Sharia Stock Pro © 2023 | Powered by AI and Smart Beta Strategies</div>", unsafe_allow_html=True)
 
 if __name__ == "__main__":
-    main() 
+    main()
