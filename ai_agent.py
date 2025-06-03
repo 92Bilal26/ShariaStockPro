@@ -99,7 +99,7 @@ Focus on stocks that match the user's risk profile while maintaining Shariah com
             prompt,
             generation_config=genai.types.GenerationConfig(
                 temperature=0.7,
-                max_output_tokens=1500,
+                max_output_tokens=2000,
                 top_p=0.8,
                 top_k=40
             )
